@@ -36,7 +36,8 @@ export default function MapViewer({
   onAnalyzeXai,
   blockedEdges = [],
   simCentralities = null,
-  emergencyLocations = null
+  emergencyLocations = null,
+  highlightedRoad = null
 }) {
   const [geoJsonData, setGeoJsonData] = useState(null);
   const [mapCenter, setMapCenter] = useState([37.7749, -122.4194]);
@@ -170,16 +171,23 @@ export default function MapViewer({
     // Check if edge is explicitly blocked in blockedEdges
     const isEdgeBlocked = blockedEdges.some(e => (e[0] === u && e[1] === v) || (e[0] === v && e[1] === u));
     const isBlocked = blockedNodes.includes(u) || blockedNodes.includes(v) || isEdgeBlocked;
+    const isHighlighted = highlightedRoad === `${u} ↔ ${v}` || highlightedRoad === `${v} ↔ ${u}`;
     
     if (isBlocked) {
-      return { color: '#EF4444', opacity: 0.2, dashArray: '5, 5' };
+      return { color: '#EF4444', opacity: 0.2, dashArray: '5, 5', weight: getWeight(criticality) };
     }
+    
+    if (isHighlighted) {
+      return { color: '#38bdf8', opacity: 1, dashArray: null, weight: getWeight(criticality) + 4 };
+    }
+    
     const defaultColor = getCentralityColor(criticality);
     const style = getElementStyle(road.properties.source, defaultColor, 0.85);
     return {
       color: style.color,
       opacity: style.opacity,
-      dashArray: null
+      dashArray: null,
+      weight: getWeight(criticality)
     };
   };
 
@@ -251,7 +259,7 @@ export default function MapViewer({
               className="animated-path"
               pathOptions={{
                 color: roadStyle.color,
-                weight: getWeight(criticality),
+                weight: roadStyle.weight,
                 opacity: roadStyle.opacity,
                 dashArray: roadStyle.dashArray
               }}

@@ -7,18 +7,38 @@ export default function ExecutiveReport({ project }) {
 
   const exportFormats = [
     { id: 'pdf', label: 'PDF Report', icon: FileText, desc: 'Professional government-ready PDF with all analytics', color: 'text-red-400 border-red-500/30 bg-red-500/5' },
-    { id: 'pptx', label: 'PowerPoint', icon: FileImage, desc: 'Presentation-ready slides for stakeholders', color: 'text-orange-400 border-orange-500/30 bg-orange-500/5' },
     { id: 'csv', label: 'CSV Data', icon: FileSpreadsheet, desc: 'Tabular data for spreadsheet analysis', color: 'text-emerald-400 border-emerald-500/30 bg-emerald-500/5' },
-    { id: 'geojson', label: 'GeoJSON Export', icon: Map, desc: 'Full geospatial data for GIS software', color: 'text-blue-400 border-blue-500/30 bg-blue-500/5' },
+    { id: 'json', label: 'JSON Export', icon: Map, desc: 'Full metric data for external integration', color: 'text-blue-400 border-blue-500/30 bg-blue-500/5' },
   ];
 
   const handleExport = async (format) => {
+    if (!project || !project.id) return;
+    
     setExporting(format);
     setExportDone(null);
-    await new Promise(r => setTimeout(r, 2000));
-    setExportDone(format);
-    setExporting(null);
-    setTimeout(() => setExportDone(null), 3000);
+    
+    try {
+      const response = await fetch(`/api/report/${format}/${project.id}`);
+      if (!response.ok) throw new Error('Export failed');
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `roadshield_report_${project.id}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      
+      setExportDone(format);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to generate report');
+    } finally {
+      setExporting(null);
+      setTimeout(() => setExportDone(null), 3000);
+    }
   };
 
   if (!project) {

@@ -89,6 +89,7 @@ export default function App() {
   const [isHealing, setIsHealing] = useState(false);
   
   const [xaiRoad, setXaiRoad] = useState(null);
+  const [highlightedRoad, setHighlightedRoad] = useState(null);
   const [activeTab, setActiveTab] = useState('simulation');
 
   const [enterpriseExpanded, setEnterpriseExpanded] = useState(false);
@@ -315,7 +316,7 @@ export default function App() {
       case 'recovery':
         return <RecoveryScorePanel project={selectedProject} />;
       case 'confidence':
-        return <ConfidenceOverlay project={selectedProject} />;
+        return <ConfidenceOverlay project={selectedProject} onSelectRoad={setHighlightedRoad} />;
       case 'comparison':
         return <CityComparison projects={projects} />;
       case 'story':
@@ -390,6 +391,7 @@ export default function App() {
             alternateRoute={alternateRoute}
             healingStage={healingStage}
             healingEdges={healingEdges}
+            highlightedRoad={highlightedRoad}
             onAnalyzeXai={(road) => {
               setXaiRoad(road);
               setActiveTab('xai');
@@ -430,21 +432,21 @@ export default function App() {
           </div>
 
           {enterpriseExpanded && (
-            <div className="flex flex-wrap gap-1 px-3 py-2 border-b border-brand-border bg-brand-dark/20">
+            <div className="grid grid-cols-3 gap-2 p-3 border-b border-brand-border bg-[#0B0F19] shadow-inner relative z-20">
               {FEATURE_TABS.filter(t => t.group === 'enterprise').map(tab => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
                 return (
                   <button key={tab.id}
-                    onClick={() => { setActiveTab(tab.id); setShowMobileNav(false); }}
-                    className={`flex items-center gap-1 px-2 py-1 text-[8px] lg:text-[10px] font-medium rounded-lg border transition ${
+                    onClick={() => { setActiveTab(tab.id); setShowMobileNav(false); setEnterpriseExpanded(false); }}
+                    className={`flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl border transition ${
                       isActive 
-                        ? 'bg-brand-glow/10 border-brand-glow/30 text-brand-glow' 
-                        : 'bg-brand-card border-brand-border text-slate-400 hover:text-slate-200 hover:border-slate-400'
+                        ? 'bg-brand-glow/10 border-brand-glow/50 text-brand-glow' 
+                        : 'bg-brand-dark border-brand-border/50 text-slate-400 hover:text-slate-200 hover:border-slate-500 hover:bg-brand-card'
                     }`}
                   >
-                    <Icon className="w-3 h-3" />
-                    {tab.label}
+                    <Icon className="w-4 h-4 mb-0.5" />
+                    <span className="text-[9px] text-center font-medium leading-tight">{tab.label}</span>
                   </button>
                 );
               })}
