@@ -15,6 +15,7 @@ from app.routes import copilot
 from app.routes import infrastructure
 from app.routes import analytics_advanced
 from app.routes import report
+from app.routes import mission
 
 app = FastAPI(title="RoadShield AI - Geospatial API", version="2.0.0")
 
@@ -37,6 +38,7 @@ app.include_router(copilot.router)
 app.include_router(infrastructure.router)
 app.include_router(analytics_advanced.router)
 app.include_router(report.router)
+app.include_router(mission.router)
 
 @app.get("/")
 def read_root():

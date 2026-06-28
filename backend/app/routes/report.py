@@ -4,7 +4,7 @@ import io
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import Response, StreamingResponse
 from sqlalchemy.orm import Session
-from app.database import get_db, Project
+from app.database import get_db, Project, MissionEvent
 from datetime import datetime
 
 # ReportLab imports
@@ -64,10 +64,24 @@ def export_json(project_id: int, db: Session = Depends(get_db)):
                 "betweenness": e["properties"].get("betweenness", 0),
                 "is_bridge": e["properties"].get("is_bridge", False)
             }
-            for e in sorted_edges[:50] # Top 50
+            for e in sorted_edges[:50]
         ]
     }
-    
+
+    # ── Log report mission event ───────────────────────────────────────
+    last_ev = db.query(MissionEvent).filter(
+        MissionEvent.project_id == project_id
+    ).order_by(MissionEvent.step.desc()).first()
+    next_step = (last_ev.step + 1) if last_ev else 8
+    db.add(MissionEvent(
+        project_id=project_id, step=next_step,
+        event_type="report", title="Executive Report Compiled (JSON)",
+        description=f"JSON report generated: {data['total_edges']} roads, {data['total_nodes']} junctions.",
+        payload={"format": "JSON", "total_nodes": data["total_nodes"], "total_edges": data["total_edges"]},
+    ))
+    db.commit()
+    # ─────────────────────────────────────────────────────────────
+
     return Response(
         content=json.dumps(report_data, indent=2),
         media_type="application/json",
