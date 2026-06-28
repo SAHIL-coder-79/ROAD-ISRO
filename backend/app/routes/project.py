@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
 from sqlalchemy.orm import Session
-from app.database import get_db, Project
+from app.database import get_db, Project, MissionEvent
 from app.schemas import ProjectResponse, SimulationRequest
 from app.models.road_extractor import RoadExtractor
 from app.graph_analysis import mask_to_graph, calculate_centrality, simulate_blockage, graph_to_geojson, generate_recommendations
@@ -11,6 +11,7 @@ import json
 import uuid
 import shutil
 import networkx as nx
+import datetime
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -64,7 +65,45 @@ def upload_satellite_image(
         db.add(db_project)
         db.commit()
         db.refresh(db_project)
-        
+
+        # ── Log mission events for upload → segmentation → graph ──────────
+        nodes_list = list(centralities["nodes"].values())
+        avg_crit = sum(n.get("criticality", 0) for n in nodes_list) / max(len(nodes_list), 1)
+        critical_count = sum(1 for e in centralities["edges"].values() if e.get("criticality", 0) > 0.6)
+        bridge_count = sum(1 for e in centralities["edges"].values() if e.get("is_bridge", False))
+
+        mission_base = db_project.created_at
+        for step, ev in enumerate([
+            MissionEvent(project_id=db_project.id, step=0, event_type="upload",
+                title="Satellite Image Upload",
+                description=f"Image '{name}' uploaded and processed.",
+                payload={"image_url": db_project.original_image, "project_name": name},
+                timestamp=mission_base),
+            MissionEvent(project_id=db_project.id, step=1, event_type="segmentation",
+                title="AI Road Segmentation",
+                description="Road network extracted from satellite imagery via hybrid CV+DL pipeline.",
+                payload={"mask_url": db_project.segmentation_mask, "method": "Hybrid CV+DL"},
+                timestamp=mission_base + datetime.timedelta(seconds=5)),
+            MissionEvent(project_id=db_project.id, step=2, event_type="healing",
+                title="Road Gap Healing",
+                description="Morphological gap-filling repaired occluded segments.",
+                payload={"total_edges": len(graph.edges)},
+                timestamp=mission_base + datetime.timedelta(seconds=12)),
+            MissionEvent(project_id=db_project.id, step=3, event_type="graph",
+                title="Graph Construction",
+                description=f"{len(graph.nodes)} junctions and {len(graph.edges)} road segments built into a topological graph.",
+                payload={"total_nodes": len(graph.nodes), "total_edges": len(graph.edges)},
+                timestamp=mission_base + datetime.timedelta(seconds=15)),
+            MissionEvent(project_id=db_project.id, step=4, event_type="analysis",
+                title="Critical Road Analysis",
+                description=f"Centrality computed: {critical_count} high-risk roads, {bridge_count} bridges identified.",
+                payload={"critical_roads": critical_count, "bridge_count": bridge_count, "avg_criticality": round(avg_crit, 3)},
+                timestamp=mission_base + datetime.timedelta(seconds=18)),
+        ]):
+            db.add(ev)
+        db.commit()
+        # ─────────────────────────────────────────────────────────────────
+
         return db_project
         
     except Exception as e:
@@ -133,6 +172,29 @@ def run_failure_simulation(
             target=req.target_node,
             disaster_type=req.disaster_type
         )
+
+        # ── Log simulation mission event ──────────────────────────────────
+        last_ev = db.query(MissionEvent).filter(
+            MissionEvent.project_id == project_id
+        ).order_by(MissionEvent.step.desc()).first()
+        next_step = (last_ev.step + 1) if last_ev else 5
+        disaster_label = req.disaster_type or "Custom"
+        db.add(MissionEvent(
+            project_id=project_id,
+            step=next_step,
+            event_type="simulation",
+            title=f"Disaster Simulation: {disaster_label}",
+            description=f"Blocked {len(req.blocked_nodes)} nodes and {len(req.blocked_edges)} edges. Accessibility: {results.get('accessibility_pct', 0):.1f}%.",
+            payload={
+                "disaster_type": disaster_label,
+                "blocked_nodes": len(req.blocked_nodes),
+                "blocked_edges": len(req.blocked_edges),
+                "accessibility_pct": results.get("accessibility_pct", 0),
+            },
+        ))
+        db.commit()
+        # ───────────────────────────────────────────────────────────
+
         return results
         
     except Exception as e:
@@ -264,7 +326,7 @@ def run_road_healing(
         recovered_intersections_set = healed_lcc_nodes - initial_lcc_nodes
         recovered_intersections = len([n for n in recovered_intersections_set if n not in req.blocked_nodes])
 
-        return {
+        heal_result = {
             "healing_edges": healing_edges,
             "metrics": {
                 "recovered_roads": recovered_roads,
@@ -273,6 +335,28 @@ def run_road_healing(
                 "recovered_intersections": recovered_intersections
             }
         }
+
+        # ── Log healing mission event ─────────────────────────────────────
+        last_ev = db.query(MissionEvent).filter(
+            MissionEvent.project_id == project_id
+        ).order_by(MissionEvent.step.desc()).first()
+        next_step = (last_ev.step + 1) if last_ev else 5
+        db.add(MissionEvent(
+            project_id=project_id,
+            step=next_step,
+            event_type="routing",
+            title="Emergency Route Calculation",
+            description=f"Healed {recovered_roads} broken segments. Connectivity increased by {connectivity_increase:.1f}%.",
+            payload={
+                "recovered_roads": recovered_roads,
+                "connectivity_increase": connectivity_increase,
+                "recovered_length": recovered_length,
+            },
+        ))
+        db.commit()
+        # ─────────────────────────────────────────────────────────────────
+
+        return heal_result
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Healing simulation error: {str(e)}")

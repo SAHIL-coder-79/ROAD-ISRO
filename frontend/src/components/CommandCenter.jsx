@@ -4,11 +4,33 @@ import { Monitor, Activity, HeartPulse, Shield, Bell, AlertTriangle, Clock, Wifi
 export default function CommandCenter({ project, alerts, systemStatus }) {
   const [time, setTime] = useState(new Date());
   const [statusItems, setStatusItems] = useState([]);
+  const [telemetry, setTelemetry] = useState(null);
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    let telemetryTimer;
+    const fetchTelemetry = async () => {
+      if (!project) return;
+      try {
+        const res = await fetch(`http://localhost:8000/advanced/telemetry/${project.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setTelemetry(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch telemetry:", err);
+      }
+    };
+
+    fetchTelemetry();
+    telemetryTimer = setInterval(fetchTelemetry, 5000);
+
+    return () => clearInterval(telemetryTimer);
+  }, [project]);
 
   useEffect(() => {
     setStatusItems([
@@ -17,9 +39,9 @@ export default function CommandCenter({ project, alerts, systemStatus }) {
       { label: 'Road Network', value: project ? `${project.name}` : 'STANDBY', color: 'text-brand-glow', icon: Activity },
       { label: 'Telemetry', value: 'RECEIVING', color: 'text-emerald-400', icon: Radio, pulse: true },
       { label: 'Signal Strength', value: '98%', color: 'text-emerald-400', icon: Signal },
-      { label: 'Processing', value: 'IDLE', color: 'text-slate-400', icon: Loader2 },
+      { label: 'Disaster Status', value: telemetry ? telemetry.disaster_status : 'NONE', color: telemetry && telemetry.disaster_status !== 'None' ? 'text-red-400' : 'text-slate-400', icon: AlertTriangle, pulse: telemetry && telemetry.disaster_status !== 'None' },
     ]);
-  }, [project]);
+  }, [project, telemetry]);
 
   return (
     <div className="flex flex-col gap-4 h-full overflow-y-auto pr-1">
@@ -64,36 +86,36 @@ export default function CommandCenter({ project, alerts, systemStatus }) {
             <span className="text-slate-400">Road Health Index</span>
             <div className="flex items-center gap-2">
               <div className="w-20 h-1.5 bg-brand-dark rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-red-500 via-amber-400 to-emerald-400 rounded-full" style={{ width: '72%' }} />
+                <div className="h-full bg-gradient-to-r from-red-500 via-amber-400 to-emerald-400 rounded-full" style={{ width: `${telemetry?.health_index || 0}%`, transition: 'width 1s ease-in-out' }} />
               </div>
-              <span className="font-mono text-slate-300">72%</span>
+              <span className="font-mono text-slate-300">{telemetry?.health_index || 0}%</span>
             </div>
           </div>
           <div className="flex justify-between text-[10px]">
-            <span className="text-slate-400">AI Confidence</span>
+            <span className="text-slate-400">Network Efficiency</span>
             <div className="flex items-center gap-2">
               <div className="w-20 h-1.5 bg-brand-dark rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-amber-400 to-brand-glow rounded-full" style={{ width: '88%' }} />
+                <div className="h-full bg-gradient-to-r from-amber-400 to-brand-glow rounded-full" style={{ width: `${telemetry?.network_efficiency || 0}%`, transition: 'width 1s ease-in-out' }} />
               </div>
-              <span className="font-mono text-slate-300">88%</span>
+              <span className="font-mono text-slate-300">{telemetry?.network_efficiency || 0}%</span>
             </div>
           </div>
           <div className="flex justify-between text-[10px]">
             <span className="text-slate-400">Emergency Access</span>
             <div className="flex items-center gap-2">
               <div className="w-20 h-1.5 bg-brand-dark rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-red-500 to-emerald-400 rounded-full" style={{ width: '65%' }} />
+                <div className="h-full bg-gradient-to-r from-red-500 to-emerald-400 rounded-full" style={{ width: `${telemetry?.emergency_accessibility || 0}%`, transition: 'width 1s ease-in-out' }} />
               </div>
-              <span className="font-mono text-slate-300">65%</span>
+              <span className="font-mono text-slate-300">{telemetry?.emergency_accessibility || 0}%</span>
             </div>
           </div>
           <div className="flex justify-between text-[10px]">
-            <span className="text-slate-400">Network Connectivity</span>
+            <span className="text-slate-400">Critical Roads</span>
             <div className="flex items-center gap-2">
               <div className="w-20 h-1.5 bg-brand-dark rounded-full overflow-hidden">
-                <div className="h-full bg-brand-glow rounded-full" style={{ width: '91%' }} />
+                <div className="h-full bg-brand-glow rounded-full" style={{ width: `${telemetry?.critical_roads_pct || 0}%`, transition: 'width 1s ease-in-out' }} />
               </div>
-              <span className="font-mono text-slate-300">91%</span>
+              <span className="font-mono text-slate-300">{telemetry?.critical_roads_count || 0}</span>
             </div>
           </div>
         </div>

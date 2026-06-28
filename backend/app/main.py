@@ -2,12 +2,20 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from dotenv import load_dotenv
+import os
+
+# Load environment variables from backend/.env (ignored by git)
+load_dotenv()
+
 from app.config import BASE_DIR, PORT, HOST
 from app.database import init_db
 from app.routes import project
 from app.routes import copilot
 from app.routes import infrastructure
 from app.routes import analytics_advanced
+from app.routes import report
+from app.routes import mission
 
 app = FastAPI(title="RoadShield AI - Geospatial API", version="2.0.0")
 
@@ -29,6 +37,8 @@ app.include_router(project.router)
 app.include_router(copilot.router)
 app.include_router(infrastructure.router)
 app.include_router(analytics_advanced.router)
+app.include_router(report.router)
+app.include_router(mission.router)
 
 @app.get("/")
 def read_root():

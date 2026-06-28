@@ -1,12 +1,44 @@
+# ── Dependencies ──────────────────────────────────────────────────────────────
 node_modules/
 __pycache__/
 *.pyc
 *.pyo
 venv/
-.env
-*.db
+.venv/
+env/
+
+# ── Build & Cache ──────────────────────────────────────────────────────────────
 dist/
 .vite/
 *.log
 .DS_Store
 Thumbs.db
+
+# ── Database ───────────────────────────────────────────────────────────────────
+*.db
+*.sqlite3
+
+# ── 🔐 SECRETS — Never commit these ───────────────────────────────────────────
+.env
+.env.local
+.env.production
+.env.*.local
+backend/.env
+backend/.env.local
+*.pem
+*.key
+*.p12
+*.pfx
+service_account*.json
+*credentials*.json
+*secret*.json
+
+# ── Runtime-generated uploads / outputs ───────────────────────────────────────
+backend/static/uploads/*
+backend/static/outputs/*
+!backend/static/uploads/.gitkeep
+!backend/static/outputs/.gitkeep
+
+# ── Accidentally committed files ───────────────────────────────────────────────
+--oneline
+package-lock.json

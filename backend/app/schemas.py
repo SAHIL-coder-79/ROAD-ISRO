@@ -63,3 +63,10 @@ class AlertRecord(BaseModel):
 class PredictionRequest(BaseModel):
     project_id: int
     prediction_type: str = "vulnerability"
+
+class MissionEventCreate(BaseModel):
+    project_id: int
+    event_type: str
+    title: str
+    description: str = ""
+    payload: Optional[Dict[str, Any]] = {}

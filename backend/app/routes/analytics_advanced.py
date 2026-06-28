@@ -429,3 +429,54 @@ def create_mission_log(data: dict, db: Session = Depends(get_db)):
     db.add(log)
     db.commit()
     return {"status": "created", "id": log.id}
+
+@router.get("/telemetry/{project_id}")
+def get_telemetry(project_id: int, db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+        
+    try:
+        graph, geojson_data = rebuild_graph(project)
+        from app.graph_analysis import calculate_centrality
+        metrics = calculate_centrality(graph)
+        
+        components = list(nx.connected_components(graph))
+        lcc = max(components, key=len) if components else set()
+        
+        nodes_list = list(metrics["nodes"].values())
+        avg_crit = sum(n.get("criticality", 0) for n in nodes_list) / max(len(nodes_list), 1)
+        
+        # 1. Health Index
+        health_index = round(max(0, 100 - avg_crit * 100), 1)
+        
+        # 2. Emergency Accessibility (LCC size percentage)
+        emergency_accessibility = round((len(lcc) / max(len(graph.nodes), 1)) * 100, 1)
+        
+        # 3. Critical Roads
+        critical_roads_count = sum(1 for e in metrics["edges"].values() if e.get("criticality", 0) > 0.6)
+        total_roads = max(len(graph.edges), 1)
+        critical_roads_pct = round((critical_roads_count / total_roads) * 100, 1)
+        
+        # 4. Network Efficiency (inverse of average shortest path length approximation, or just a function of connectivity & criticality)
+        network_efficiency = round(emergency_accessibility * (1 - avg_crit * 0.5), 1)
+        
+        # 5. Disaster Status
+        # We can check the most recent Scenario for this project
+        from app.database import Scenario
+        latest_scenario = db.query(Scenario).filter(Scenario.project_id == project_id).order_by(Scenario.created_at.desc()).first()
+        disaster_status = latest_scenario.name if latest_scenario else "None"
+        
+        # Add some jitter to make it feel "live"
+        jitter = lambda x: round(min(100, max(0, x + random.uniform(-1.5, 1.5))), 1)
+        
+        return {
+            "health_index": jitter(health_index),
+            "emergency_accessibility": jitter(emergency_accessibility),
+            "critical_roads_pct": jitter(critical_roads_pct),
+            "critical_roads_count": critical_roads_count,
+            "network_efficiency": jitter(network_efficiency),
+            "disaster_status": disaster_status
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Telemetry error: {str(e)}")

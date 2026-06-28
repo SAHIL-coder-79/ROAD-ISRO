@@ -34,16 +34,20 @@ export default function SimulationPanel({
 
   const handleUpload = async (e) => {
     e.preventDefault();
-    if (!file || !name.trim()) {
-      setUploadError('Please fill out all fields.');
+    if (!file) {
+      setUploadError('Please select a file to upload.');
       return;
     }
+    
+    // Auto-fill name if left empty
+    const networkName = name.trim() ? name.trim() : (file.name ? file.name.split('.')[0] : 'New Network');
+
 
     setIsUploading(true);
     setUploadError('');
     try {
       const formData = new FormData();
-      formData.append('name', name);
+      formData.append('name', networkName);
       formData.append('file', file);
       
       // Default center coords (e.g. San Francisco)

@@ -75,6 +75,17 @@ class MissionLog(Base):
     details = Column(JSON, default={})
     timestamp = Column(DateTime, default=datetime.datetime.utcnow)
 
+class MissionEvent(Base):
+    __tablename__ = "mission_events"
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, index=True)
+    step = Column(Integer)           # sequential order within a mission
+    event_type = Column(String)      # upload | segmentation | healing | graph | analysis | simulation | routing | recommendations | report
+    title = Column(String)
+    description = Column(Text, default="")
+    payload = Column(JSON, default={})  # real metrics snapshot at this step
+    timestamp = Column(DateTime, default=datetime.datetime.utcnow)
+
 class BudgetPlan(Base):
     __tablename__ = "budget_plans"
     id = Column(Integer, primary_key=True, index=True)

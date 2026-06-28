@@ -66,11 +66,11 @@ def mask_to_graph(mask: np.ndarray, center_lat: float = 37.7749, center_lon: flo
         lat, lon = pixel_to_geo(j[0], j[1])
         simplified_graph.add_node(
             f"node_{j[0]}_{j[1]}", 
-            x=j[0], 
-            y=j[1], 
+            x=int(j[0]), 
+            y=int(j[1]), 
             lat=lat, 
             lon=lon, 
-            original_coords=j
+            original_coords=(int(j[0]), int(j[1]))
         )
 
     # For each junction, find paths to neighboring junctions
